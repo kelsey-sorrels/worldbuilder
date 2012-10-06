@@ -247,7 +247,7 @@ public class ColorMapper
     boolean addToColorMap = true;
     for(Entry entry : colorMap)
     {
-      if(e.distance(entry)<20)
+      if(e.distance(entry)<10)
       {
         addToColorMap = false;
         break;

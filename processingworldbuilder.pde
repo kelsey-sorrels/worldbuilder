@@ -5,21 +5,80 @@ public static double fastpow(final double a, final double b)
     return Double.longBitsToDouble(tmp2);
 }
 
- // Cell length in meters
-  static final float l = 1;
-  
-  // Cell area in meters^2
-  static final float A = l*l;
-  
-  // Cell volume in meters^3
-  static final float V = A*l;
-  
-  // Gravitational constant
-  static final float g = 9.81;
-  
-  // Atmosphere extends 500m above elevation
-  static final float atmosphericHeight = 10000;
+// Cell length in meters
+static final float l = 1;
 
+// Cell area in meters^2
+static final float A = l*l;
+
+// Cell volume in meters^3
+static final float V = A*l;
+
+// Gravitational constant
+static final float g = 9.81;
+
+// Atmosphere extends 500m above elevation
+static final float atmosphericHeight = 10000;
+
+private static class Citizen
+{
+  int x,y;
+  float urbanAffinity;
+  
+  public Citizen(int x, int y, float urbanAffinity)
+  {
+    this.x = x;
+    this.y = y;
+    this.urbanAffinity = urbanAffinity;
+  }
+  public int getX()
+  {
+    return x;
+  }
+  public void setX(int x)
+  {
+    this.x = x;
+  }
+  public int getY()
+  {
+    return y;
+  }
+  public void setY(int y)
+  {
+    this.y = y;
+  }
+  public float getUrbanAffinity()
+  {
+    return urbanAffinity;
+  }
+}
+
+private static class City
+{
+  int x, y, population;
+  public City(int x, int y, int population)
+  {
+    this.x = x;
+    this.y = y;
+    this.population = population;
+  }
+  public int getX()
+  {
+    return x;
+  }
+  public int getY()
+  {
+    return y;
+  }
+  public int getPopulation()
+  {
+    return population;
+  }
+  public void setPopulation(int population)
+  {
+    this.population = population;
+  }
+}
 private static class WorldSnapShot
 {
   // Height of world
@@ -32,15 +91,30 @@ private static class WorldSnapShot
   float[][] waterVapor;
   // Amount of vegetation
   float[][] vegetation;
+  // People in the world
+  List<Citizen> citizens;
+  // Cities of the world
+  List<City> cities;
   
   
-  public WorldSnapShot(final float[][] world, final float[][] water, final float[][] snow, final float[][] waterVapor, float[][] vegetation)
+  public WorldSnapShot
+  (
+    final float[][] world,
+    final float[][] water,
+    final float[][] snow,
+    final float[][] waterVapor,
+    float[][] vegetation,
+    List<Citizen> citizens,
+    List<City> cities
+  )
   {
     this.world = world;
     this.water = water;
     this.snow = snow;
     this.waterVapor = waterVapor;
     this.vegetation = vegetation;
+    this.citizens = citizens;
+    this.cities = cities;
   }
   
   public float getWorld(float x, float y)
@@ -63,9 +137,24 @@ private static class WorldSnapShot
     return waterVapor[(int)(x * waterVapor[0].length)][(int)(y * waterVapor.length)];
   }
   
-  public float getVegetation(float x, float y)
+  public float getVegetation(float u, float v)
   {
-    return vegetation[(int)(x * vegetation[0].length)][(int)(y * vegetation.length)];
+    int x = (int)(u * vegetation[0].length);
+    int y = (int)(v * vegetation.length);
+    float vo =  vegetation[x][y];
+    float ve =  vegetation[constrain(x + 1, 0, vegetation[0].length-1)][y];
+    float vw =  vegetation[constrain(x - 1, 0, vegetation[0].length-1)][y];
+    float vs =  vegetation[x][constrain(y + 1, 0, vegetation.length-1)];
+    float vn =  vegetation[x][constrain(y - 1, 0, vegetation.length-1)];
+    return (vo+ve+vw+vs+vn)/5;
+  }
+  public List<Citizen> getCitizens()
+  {
+    return citizens;
+  }
+  public List<City> getCities()
+  {
+    return cities;
   }
 }
 
@@ -99,6 +188,12 @@ private class World
   
   // Amount of vegetation
   private float[][] vegetation;
+
+  // Citizens in the world
+  private List<Citizen> citizens = new ArrayList<Citizen>();
+  
+  // Cities of the world
+  private List<City> cities = new ArrayList<City>();
   
   // Fluid solver for water vapor transport
   private NavierStokesSolver fluidSolver = new NavierStokesSolver();
@@ -204,8 +299,10 @@ private class World
      {
        System.arraycopy(vegetation[i], 0, vegetationClone[i], 0, vegetation[0].length);
      }
-     
-     return (new WorldSnapShot(worldClone, waterClone, snowClone, waterVaporClone, vegetationClone));
+     List<Citizen> citizensClone = new ArrayList<Citizen>(citizens);
+     List<City> citiesClone = new ArrayList<City>(cities);
+     return (new WorldSnapShot(worldClone, waterClone, snowClone, waterVaporClone, vegetationClone,
+       citizensClone, citiesClone));
   }
   
   // See http://www-evasion.imag.fr/Publications/2007/MDH07/FastErosion_PG07.pdf
@@ -263,8 +360,8 @@ private class World
       // http://en.wikipedia.org/wiki/Rain#Intensity
       // 10mm = 1cm = .1m/hr
       // = 0.000277777778 m/s
-      // = 277g/m^s/s
-      float maxRainRate = 0.3*A;
+      // = 277g/m^2/s
+      float maxRainRate = 277*A/dt;
       //rainRate = 27;
 
       for(int x = 0; x<width; x++)
@@ -275,7 +372,7 @@ private class World
           tmpWaterVapor[x][y] = 0;
           
           // Vegetation decay rate.
-          float Vk = 0.0000002;
+          float Vk = 0.2;
           vegetation[x][y]*=1-Vk*dt;
           
           if (vegetation[x][y] < 0)
@@ -299,7 +396,7 @@ private class World
             if (Dv*Wadj > 0)
               //println("adding vegetation:"+1000000*Dv*Wadj+" Dv:"+Dv+"  Wadj:"+Wadj);
               
-              vegetation[x][y]+=1000000*Dv*Wadj;
+              vegetation[x][y]+=10*Dv*Wadj;
               
               if (vegetation[x][y]>3)
               {
@@ -512,7 +609,7 @@ private class World
           // Temperature for the given cell by height and by lattitude
           float Tk = temperatureByHeightAndLattitudeAndTime(elevation, y, minutesElapsedSinceMidnight);
           // Rate of evaporation.
-          float Re = 0.15;
+          float Re = 0.1;
           // Water decreases due to evaporation.
           // Evaporation rate
           float Ke = Re*Math.max(0, Tk)*dt;
@@ -541,7 +638,7 @@ private class World
           float evaporation = min(water[x][y], waterHeight);
           
           
-          if (x == 300 && y == 300 && stepCount%10==0)
+          if (x == 300 && y == 300 && stepCount%10000==0)
           {
             println(String.format("evaopration in g %f", evaporationMass));
             println(String.format("water height in m %f", waterHeight));
@@ -565,7 +662,7 @@ private class World
         // Melting constant
         if (snow[x][y]>0)
         {
-          float Km = 0.1;
+          float Km = 100.1;
           float melt = min(snow[x][y]*Km*dt, snow[x][y]);
           //snow[x][y]=-melt;
           water[x][y]+=melt;
@@ -663,6 +760,131 @@ private class World
       System.arraycopy(tmpWaterVapor[i], 0, waterVapor[i], 0, tmpWaterVapor[i].length);
       System.arraycopy(tmpSediment[i], 0, suspendedSediment[i], 0, tmpSediment[i].length);
     }
+    
+    if (stepCount%10 == 0)
+    {
+      releaseCitizen();
+    }
+    List<Citizen> citizensToDelete = new ArrayList<Citizen>();
+    for (Citizen citizen : citizens)
+    {
+      if (stepCitizen(citizen))
+      {
+        citizensToDelete.add(citizen);
+      }
+    }
+    citizens.removeAll(citizensToDelete);
+  }
+  
+  void releaseCitizen()
+  {
+    boolean embarcationFound = false;
+    while (!embarcationFound)
+    {
+      int x = (int)random(0, width-1);
+      int y = (int)random(0, height-1);
+      // Don't start people off in the ocean. They will drown :(
+      // Don't start people off at high altitude, they will get sick.
+      if (water[x][y] < 0.01 && world[x][y] < 5000)
+      {
+        embarcationFound = true;
+        // Create a new citizen here with a random urban affinity between 0 and 1.
+        citizens.add(new Citizen(x, y, random(0, 1)));
+        println(String.format("Citizen released at %d, %d", x, y));
+      }
+    }
+  }
+
+  boolean stepCitizen(final Citizen citizen)
+  {
+    PVector cp = new PVector(citizen.getX(), citizen.getY());
+    // find nearby most habitable point.
+    PVector p = mostHabitablePoint(citizen);
+    if (p == null)
+    {
+      return false;
+    }
+    
+    boolean deleteCitizen = false;
+    
+    // Is it possible to get there?
+    // No? loop to next most habitable point.
+    
+    // Move one step closer to most habitable point
+    citizen.setX((int)p.x);
+    citizen.setY((int)p.y);
+    // At most habitable point?
+    if (cp.equals(p))
+    {
+      // Citizen should be deleted
+      deleteCitizen = true;
+      // Find city at point
+      City foundCity= null;
+      for (final City city : cities)
+      {
+        if (city.getX() == p.x && city.getY() == p.y)
+        {
+          foundCity = city;
+          break;
+        }
+      }
+      if (foundCity == null)
+      {
+        foundCity = new City((int)p.x, (int)p.y, 0);
+        cities.add(foundCity);
+        println(String.format("City created at %d, %d", (int)p.x, (int)p.y));
+      }
+      foundCity.setPopulation(1+foundCity.getPopulation());
+    }
+    return deleteCitizen;
+  }
+  
+  PVector mostHabitablePoint(final Citizen citizen)
+  {
+    int x = citizen.getX();
+    int y = citizen.getY();
+    int w = 20;
+    int h = 20;
+    PVector bestMatch = null;
+    float bestScore = 0;
+    for (int i = x-w/2; i<x+w/2; i++)
+    {
+      for (int j = y-h/2; j<y+h/2; j++)
+      {
+        float score = habitability(
+          constrain(i, 0, width-1),
+          constrain(j, 0, height-1),
+          citizen.getUrbanAffinity());
+        if (score > bestScore)
+        {
+          bestMatch = new PVector(i, j);
+          bestScore = score;
+        }
+      }
+    }
+    return bestMatch;
+  }
+  
+  float habitability(int x, int y, float urbanAffinity)
+  {
+    if (water[x][y] > 0.01)
+    {
+      return -1;
+    }
+    float dToNearestCity = width+height;
+    for (City city : cities)
+    {
+      float d = dist((float)x, (float)y, (float)city.getX(), (float)city.getY());
+      if (d < dToNearestCity)
+      {
+        dToNearestCity = d;
+      }
+    }
+    // Add non-affinity to edges of map
+    float temperatureIndex = -abs(290-temperatureByHeightAndLattitudeAndTime(world[x][y], (float)y/height, 660)) + 10;
+    float socialIndex = dToNearestCity * -(10*urbanAffinity>0.5?1:0-5);
+    float cityIndex = sq(dToNearestCity/5)/2+10/(dToNearestCity+0.5+0.1)-8;
+    return cityIndex + 10*vegetation[x][y] + temperatureIndex;
   }
 }
 
@@ -788,7 +1010,7 @@ ColorMapper mapper;
 PImage c, e, r, temp;
 
 void setup() {
-  size(300, 300);
+  size(600, 600);
   background(0);
   frameRate(60);
       
@@ -843,7 +1065,7 @@ void draw()
   }
   
   loadPixels();
-  int res = 1;
+  int res = 4;
   for(float x = 0; x<width; x+=res)
   {
     for(float y = 0; y<height; y+=res)
@@ -883,7 +1105,8 @@ void draw()
         {
           c = color(255, 255, 255);
         }
-        else if(waterHeight > 0.000006)
+        // Else if water?
+        else if(waterHeight > 0.1)
         { 
           c = color(15, 60*5/(waterHeight/20+2)+20, 89*5/(waterHeight/20+3)+60);
           color lightWater = color(86, 181, 188);
@@ -914,20 +1137,18 @@ void draw()
             sun.normalize();
             //n*l lighting
             float incidence = sun.dot(n);
-            //float incidence = 0.5;
+            //incidence = 0.5;
             // c=n*l+a
             float Kambient = 0.4;
             if(incidence>0)
             {
-              
               color d = color(128*incidence, 128*incidence, 128*incidence);
-              float Vadj = 1.0/(1+(float)fastpow(2.8, -vegetation+3));
-              
               c = color(80, 140, 90);
-              c = mapper.colorMapQuery(vegetation, (elevation-2200)/5, Tk-273, v);
-              if (vegetation>0)
-                c = color(255, 0, 0);
-              c = blendColor(c, d, ADD);
+              c = mapper.colorMapQuery(15*vegetation, (elevation-2500)/20, Tk-273, v);
+              c = color(8.0*(red(c)-95), 1.2*(green(c)+0), 1.2*(blue(c)-0));
+              //if (vegetation>0)
+              //  c = color(255, 0, 0);
+              c = blendColor(c, d, DODGE);
             }
             else
             {
@@ -956,6 +1177,34 @@ void draw()
       }
     }
   }
+  List<City> cities = snapShot.getCities();
+  List<Citizen> citizens = snapShot.getCitizens();
+  println(String.format("cities %d, citizens %d", cities.size(), citizens.size()));
+  int iconRes = 4;
+  for (City city : cities)
+  {
+    for (int i = 0; i < iconRes; i++)
+    {
+      for (int j = 0; j < iconRes; j++)
+      {
+        pixels[constrain(city.getY()+j, 0, height-1)*width
+          + constrain(city.getX()+i, 0, width-1)] = color(255, 0, 0);
+      }
+    }
+  }
+  for (Citizen citizen : citizens)
+  {
+    //println(String.format("Drawing citizen @ %d, %d", citizen.getX(), citizen.getY()));
+    
+    for (int i = 0; i < iconRes; i++)
+    {
+      for (int j = 0; j < iconRes; j++)
+      {
+        pixels[constrain(citizen.getY()+j, 0, height-1)*width
+          + constrain(citizen.getX()+i, 0, width-1)] = color(255, 0, 255);
+      }
+    }
+  }
   updatePixels();
   /*
   //println("done rendering");
@@ -966,7 +1215,7 @@ void draw()
   fill(255);
   text(frameRate,20,30);
   
-  //*/
+  //*
   if (mouseX >= 0 && mouseX < width && mouseY >=0 && mouseY < height)
   {
     textFont(font,12);
@@ -975,7 +1224,7 @@ void draw()
     
        
     float vegetation = snapShot.getVegetation(mu, mv);
-    float Vadj = 1.0/(1+(float)fastpow(2.8, -vegetation+3));
+    float snow = snapShot.getSnow(mu, mv);
     float landHeight = snapShot.getWorld(mu, mv);
     float waterHeight = snapShot.getWater(mu, mv);
     float elevation = landHeight + waterHeight;
@@ -991,19 +1240,17 @@ void draw()
     shadowedText(String.format(
       "mu mv %f %f\n" +
       "veg  %f\n" +
+      "snow %f\n" +
       "elev %f\n" +
       "Cdeg %f\n" +
       "lat  %f\n" +
       "es   %f\n" +
       "evap %f\n" +
       "humd %f\n",
-      mu, mv, vegetation, (elevation-2200)/5, Tk-273, mv,
+      mu, mv, vegetation, snow, (elevation-2500)/20, Tk-273, mv,
       waterVaporMassSat, massWaterVapor, massWaterVapor/waterVaporMassSat
-      ), 20, 40);//*/
-  }
-    
-          
-  
+      ), 20, 40);
+  }//*/
 }
 
 void shadowedText(String s, int x, int y)
@@ -1015,3 +1262,26 @@ void shadowedText(String s, int x, int y)
   text(s, x, y);
 }
 
+boolean cityAt(List<City> cities, int x, int y)
+{
+  for (City city : cities)
+  {
+    if (city.getX() == x && city.getY() == y)
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
+boolean citizenAt(List<Citizen> citizens, int x, int y)
+{
+  for (Citizen citizen : citizens)
+  {
+    if (citizen.getX() == x && citizen.getY() == y)
+    {
+      return true;
+    }
+  }
+  return false;
+}
