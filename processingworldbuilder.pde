@@ -23,13 +23,11 @@ static final float atmosphericHeight = 10000;
 private static class Citizen
 {
   int x,y;
-  float urbanAffinity;
   
-  public Citizen(int x, int y, float urbanAffinity)
+  public Citizen(int x, int y)
   {
     this.x = x;
     this.y = y;
-    this.urbanAffinity = urbanAffinity;
   }
   public int getX()
   {
@@ -46,10 +44,6 @@ private static class Citizen
   public void setY(int y)
   {
     this.y = y;
-  }
-  public float getUrbanAffinity()
-  {
-    return urbanAffinity;
   }
 }
 
@@ -518,7 +512,6 @@ private class World
       fluidSolver.applyForce(cellX, cellY, mouseDx, mouseDy);
     }
 
-
     // Water surface and velocity field
     for (int x = 0; x<width; x++)
     {
@@ -693,6 +686,33 @@ private class World
           }
         }
         
+        // Move sea ice
+        if (snow[x][y] > 0 && water[x][y] > 20 && random(0, 10)<1)
+        {
+          float v = (float)y/height;
+          // North pole?
+          if (v < 0.5)
+          {
+             // no ice to the south?
+             if (snow[x][y+1] == 0 && water[x][y+1] > 20)
+             {
+               // move berg south
+               snow[x][y+1] = snow[x][y];
+               snow[x][y] = 0;
+             }
+          }
+          else
+          {
+            // no ice to the north?
+             if (snow[x][y-1] == 0 && water[x][y-1] > 20)
+             {
+               // move berg north
+               snow[x][y-1] = snow[x][y];
+               snow[x][y] = 0;
+             }
+          }
+        }  
+        
         // Water vapor is transported by wind velocity field inside the fluid solver
         if (wind)
         {
@@ -761,9 +781,12 @@ private class World
       System.arraycopy(tmpSediment[i], 0, suspendedSediment[i], 0, tmpSediment[i].length);
     }
     
-    if (stepCount%10 == 0)
+    if (stepCount%2 == 0 && stepCount > 30 && stepCount < 130)
     {
-      releaseCitizen();
+      for (int i=0; i<10; i++)
+      {
+        releaseCitizen();
+      }
     }
     List<Citizen> citizensToDelete = new ArrayList<Citizen>();
     for (Citizen citizen : citizens)
@@ -789,7 +812,7 @@ private class World
       {
         embarcationFound = true;
         // Create a new citizen here with a random urban affinity between 0 and 1.
-        citizens.add(new Citizen(x, y, random(0, 1)));
+        citizens.add(new Citizen(x, y));
         println(String.format("Citizen released at %d, %d", x, y));
       }
     }
@@ -853,8 +876,7 @@ private class World
       {
         float score = habitability(
           constrain(i, 0, width-1),
-          constrain(j, 0, height-1),
-          citizen.getUrbanAffinity());
+          constrain(j, 0, height-1));
         if (score > bestScore)
         {
           bestMatch = new PVector(i, j);
@@ -865,7 +887,7 @@ private class World
     return bestMatch;
   }
   
-  float habitability(int x, int y, float urbanAffinity)
+  float habitability(int x, int y)
   {
     if (water[x][y] > 0.01)
     {
@@ -882,9 +904,8 @@ private class World
     }
     // Add non-affinity to edges of map
     float temperatureIndex = -abs(290-temperatureByHeightAndLattitudeAndTime(world[x][y], (float)y/height, 660)) + 10;
-    float socialIndex = dToNearestCity * -(10*urbanAffinity>0.5?1:0-5);
-    float cityIndex = sq(dToNearestCity/5)/2+10/(dToNearestCity+0.5+0.1)-8;
-    return cityIndex + 10*vegetation[x][y] + temperatureIndex;
+    float cityIndex = constrain(sq(dToNearestCity/3)/2+1000/(dToNearestCity+0.5+0.1)-8, -10, 100);
+    return cityIndex + 100*vegetation[x][y] + 10*temperatureIndex;
   }
 }
 
@@ -1180,18 +1201,18 @@ void draw()
   List<City> cities = snapShot.getCities();
   List<Citizen> citizens = snapShot.getCitizens();
   println(String.format("cities %d, citizens %d", cities.size(), citizens.size()));
-  int iconRes = 4;
   for (City city : cities)
   {
-    for (int i = 0; i < iconRes; i++)
+    for (int i = 0; i < constrain(city.getPopulation(), 2, 20); i++)
     {
-      for (int j = 0; j < iconRes; j++)
+      for (int j = 0; j < constrain(city.getPopulation(), 2, 20); j++)
       {
         pixels[constrain(city.getY()+j, 0, height-1)*width
           + constrain(city.getX()+i, 0, width-1)] = color(255, 0, 0);
       }
     }
   }
+  int iconRes = 2;
   for (Citizen citizen : citizens)
   {
     //println(String.format("Drawing citizen @ %d, %d", citizen.getX(), citizen.getY()));
@@ -1201,7 +1222,7 @@ void draw()
       for (int j = 0; j < iconRes; j++)
       {
         pixels[constrain(citizen.getY()+j, 0, height-1)*width
-          + constrain(citizen.getX()+i, 0, width-1)] = color(255, 0, 255);
+          + constrain(citizen.getX()+i, 0, width-1)] = color(128, 0, 255);
       }
     }
   }
