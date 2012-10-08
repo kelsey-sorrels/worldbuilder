@@ -16,6 +16,9 @@ This project is a proof of concept world builder using the Processing framework.
 ## Notes
 The simulation runs slowly. An effort as been made to improve the performance, but there is a lot of work still left
 to be done.
+Remember: a water model is running to simulate rivers and ocean, an amospheric simulation is running which
+transports water vapor, vegetation is grown in response to soil moisture, and migrants are searching for ideal
+locations to start a city.
 
 Enjoy making new worlds!
 
