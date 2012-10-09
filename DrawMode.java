@@ -1,0 +1,2 @@
+enum DrawMode {Geographical, Political};
+

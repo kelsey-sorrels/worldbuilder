@@ -1,9 +1,12 @@
+import processing.core.PApplet;
+
 /**
  * Java implementation of the Navier-Stokes-Solver from
  http://www.openprocessing.org/sketch/27653
  * 
  */
 public class NavierStokesSolver {
+    final int width, height;
     final static int N = 100;
     final static int SIZE = (N + 2) * (N + 2);
     double[] u = new double[SIZE];
@@ -13,7 +16,9 @@ public class NavierStokesSolver {
     double[] dense = new double[SIZE];
     double[] dense_prev = new double[SIZE];
  
-    public NavierStokesSolver() {
+    public NavierStokesSolver(int width, int height) {
+      this.width = width;
+      this.height = height;
     }
  
     public double getDx(int x, int y) {
@@ -27,8 +32,8 @@ public class NavierStokesSolver {
     public double getDx(float x, float y, float width, float height){
           final float cellWidth = width / N;
           final float cellHeight = height / N;
-          int cellX = floor(x/cellWidth);
-          int cellY = floor(y/cellHeight);
+          int cellX = (int)(x/cellWidth);
+          int cellY = (int)(y/cellHeight);
           // get dx,dy for cell, but this isn't good enough.
           float dx = (float) getDx(cellX, cellY);
           float dy = (float) getDy(cellX, cellY);
@@ -68,7 +73,7 @@ public class NavierStokesSolver {
           // lerp dx of the horizontally adjacent cell with dx of the diagonally adjacent cell according to the sample's
           // closeness to the cell wall.
           // lerp these values together based on the closeness of the sample to the cell wall.
-          dx = lerp(lerp(dx, dxv, hf * lY / cellWidth), lerp(dxh, dxvh, hf * lY / cellWidth), vf * lX / cellHeight);
+          dx = PApplet.lerp(PApplet.lerp(dx, dxv, hf * lY / cellWidth), PApplet.lerp(dxh, dxvh, hf * lY / cellWidth), vf * lX / cellHeight);
 
           return dx;
     }
@@ -76,8 +81,8 @@ public class NavierStokesSolver {
     public double getDy(float x, float y, float width, float height){
           final float cellWidth = width / N;
           final float cellHeight = height / N;
-          int cellX = floor(x/cellWidth);
-          int cellY = floor(y/cellHeight);
+          int cellX = (int)(x/cellWidth);
+          int cellY = (int)(y/cellHeight);
           // get dx,dy for cell, but this isn't good enough.
           float dx = (float) getDx(cellX, cellY);
           float dy = (float) getDy(cellX, cellY);
@@ -114,7 +119,7 @@ public class NavierStokesSolver {
           // lerp the dy of the horizontally adjacent cell with the dy of the diagonally adjacent cell according to the sample's
           // closeness to the cell wall.
           // lerp these calues together based on the closeness of the sample to the cell wall.
-          dy = lerp(lerp(dy, dyv, hf * lY / cellWidth), lerp(dyh, dyvh, hf * lY / cellWidth), vf * lX / cellHeight);
+          dy = PApplet.lerp(PApplet.lerp(dy, dyv, hf * lY / cellWidth), PApplet.lerp(dyh, dyvh, hf * lY / cellWidth), vf * lX / cellHeight);
           return dy;
     }
  
