@@ -737,8 +737,8 @@ public class World
         double r = Util.poissonRandom(15f);
         int dx = (int)(r*Math.cos(theta));
         int dy = (int)(r*Math.sin(theta));
-        x = city.getX()+dx;
-        y = city.getY()+dy;
+        x = applet.constrain(city.getX()+dx,0,height-1);
+        y = applet.constrain(city.getY()+dy,0,width-1);
         if (water[x][y] < 0.01 && world[x][y] < 5000)
         {
           foundEmbarcation = true;
