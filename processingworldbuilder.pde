@@ -73,6 +73,7 @@ void draw()
   {
     return;
   }
+  background(0);
   switch (drawMode)
   {
     case Geographical:
@@ -106,8 +107,8 @@ void drawGeographical(final WorldSnapShot snapShot)
   {
     for(float y = 0; y<height; y+=res)
     {
-      float u = x/width;
-      float v = y/height;
+      float u = (float)x/width;
+      float v = (float)y/height;
       color c = color(0, 0, 0);
       float landHeight = snapShot.getWorld(u, v);
       float waterHeight = snapShot.getWater(u, v);
@@ -116,106 +117,83 @@ void drawGeographical(final WorldSnapShot snapShot)
       float vegetation = snapShot.getVegetation(u, v);
       float elevation = landHeight + waterHeight;
       // Temperature for the given cell by height and by lattitude
-      float Tk = Util.temperatureByHeightAndLattitudeAndTime(elevation, y, 0);
+      float Tk = Util.temperatureByHeightAndLattitudeAndTime(elevation, v, 0);
       
-      // show height map and rain?
-      if (false)
+      if(snowHeight > 0.0)
       {
-        c = color(landHeight, landHeight, landHeight);
-        if(waterHeight > 0.0001 /*
-          && false
-        //*/
-        )
-        {
-          c = color(3*24, 3*34, 89*waterHeight);
-          if (massWaterVapor > 1)
-          {
-            c = color(0, 10*massWaterVapor+50, 0);
-          }
-        }
-        set((int)x, (int)y, c);
+        c = color(255, 255, 255);
       }
+      // Else if water?
+      else if(waterHeight > 0.1)
+      {
+        //c = color(15, 60*5/(waterHeight/20+2)+20, 89*5/(waterHeight/20+3)+60);
+        color lightWater = color(86, 181, 188);
+        color mediumWater = color(12, 45, 58);
+        color darkWater =  color(3, 5, 15);
+        if (waterHeight < 50)
+        {
+          c = lerpColor(lightWater, mediumWater, map(waterHeight, 0, 50, 0, 1));
+        }
+        else
+        {
+          c = lerpColor(mediumWater, darkWater, map(waterHeight, 50, 2500, 0, 1));
+        }
+      }
+      // Else land
       else
       {
-        if(snowHeight > 0.0)
+        // Not an edge pixel?
+        if(x>2 && y>2 && x<(width-2) && y<(height-2))
         {
-          c = color(255, 255, 255);
-        }
-        // Else if water?
-        else if(waterHeight > 0.1)
-        { 
-          c = color(15, 60*5/(waterHeight/20+2)+20, 89*5/(waterHeight/20+3)+60);
-          color lightWater = color(86, 181, 188);
-          color mediumWater = color(12, 45, 58);
-          color darkWater =  color(3, 5, 15);
-          if (waterHeight < 50)
+          // Calculate slope 
+          PVector nx = new PVector(-1, 0, (snapShot.getWorld(u-(2.0f/width), v) - landHeight)/200);
+          nx.normalize();
+          PVector ny = new PVector(0, -1, (snapShot.getWorld(u, v-(2.0f/height)) - landHeight)/200);
+          ny.normalize();
+          PVector n = (nx).cross(ny);
+          PVector sun = new PVector(-1,-1,0.5);
+          sun.normalize();
+          //n*l lighting
+          float incidence = sun.dot(n);
+          //incidence = 0.5;
+          // c=n*l+a
+          float Kambient = 0.4;
+          if(incidence>0)
           {
-            c = lerpColor(lightWater, mediumWater, map(waterHeight, 0, 50, 0, 1));
+            color d = color(128*incidence, 128*incidence, 128*incidence);
+            c = color(80, 140, 90);
+            c = mapper.colorMapQuery(15*vegetation, (elevation-2500)/20, Tk-273, v);
+            c = color(8.0*(red(c)-95), 1.2*(green(c)+0), 1.2*(blue(c)-0));
+            //if (vegetation>0)
+            //  c = color(255, 0, 0);
+            c = blendColor(c, d, DODGE);
           }
           else
           {
-            c = lerpColor(mediumWater, darkWater, map(waterHeight, 50, 2500, 0, 1));
+            c = color(max(15*-incidence+snowHeight*150, Kambient*15), max(23*-incidence+snowHeight*150, Kambient*60), max(12*-incidence+snowHeight*150, Kambient*140));
           }
         }
-        // Else land
-        else
-        {
-          // Not an edge pixel?
-          if(x>2 && y>2 && x<(width-2) && y<(height-2))
-          {
-            // Calculate slope 
-            PVector nx = new PVector(-1, 0, (snapShot.getWorld(u-(2.0f/width), v) - landHeight)/200);
-            nx.normalize();
-            PVector ny = new PVector(0, -1, (snapShot.getWorld(u, v-(2.0f/height)) - landHeight)/200);
-            ny.normalize();
-            PVector n = (nx).cross(ny);
-            PVector sun = new PVector(-1,-1,0.5);
-            sun.normalize();
-            //n*l lighting
-            float incidence = sun.dot(n);
-            //incidence = 0.5;
-            // c=n*l+a
-            float Kambient = 0.4;
-            if(incidence>0)
-            {
-              color d = color(128*incidence, 128*incidence, 128*incidence);
-              c = color(80, 140, 90);
-              c = mapper.colorMapQuery(15*vegetation, (elevation-2500)/20, Tk-273, v);
-              c = color(8.0*(red(c)-95), 1.2*(green(c)+0), 1.2*(blue(c)-0));
-              //if (vegetation>0)
-              //  c = color(255, 0, 0);
-              c = blendColor(c, d, DODGE);
-            }
-            else
-            {
-              c = color(max(15*-incidence+snowHeight*150, Kambient*15), max(23*-incidence+snowHeight*150, Kambient*60), max(12*-incidence+snowHeight*150, Kambient*140));
-            }
-          }
-        }
+      }
             
-          // The amount of water vapor in grams if the air was to be saturated.
-          float waterVaporMassSat = Util.waterVaporPartialPressureToMass(atmosphericHeight*V,
-            Util.waterVaporSaturationThreshold(Util.pressurePaByHeightM(elevation), Tk), Tk);
-          float humidity = massWaterVapor/waterVaporMassSat;
-         //if (massWaterVapor > waterVaporMassSat*0.14)
-         {
-            final int cloudCover = constrain((int)(255.0/(1+Util.fastpow(2.3, -16*humidity+8))-10), 0, 255);
-            c = blendColor(c, color(255, 255, 255, cloudCover), SCREEN);
-         }
-          //}
-        for (int i = 0; i < res; i++)
+      // The amount of water vapor in grams if the air was to be saturated.
+      float waterVaporMassSat = Util.waterVaporPartialPressureToMass(atmosphericHeight*V,
+        Util.waterVaporSaturationThreshold(Util.pressurePaByHeightM(elevation), Tk), Tk);
+      float humidity = massWaterVapor/waterVaporMassSat;
+      
+      final int cloudCover = constrain((int)(255.0/(1+Util.fastpow(2.3, -16*humidity+8))-10), 0, 255);
+      c = blendColor(c, color(255, 255, 255, cloudCover), SCREEN);
+      
+      for (int i = 0; i < res; i++)
+      {
+        for (int j = 0; j < res; j++)
         {
-          for (int j = 0; j < res; j++)
-          {
-            pixels[((int)y+j)*width+(int)x+i] = c;
-          }
+          pixels[((int)y+j)*width+(int)x+i] = c;
         }
       }
     }
   }
   List<City> cities = snapShot.getCities();
   List<Citizen> citizens = snapShot.getCitizens();
-  println(String.format("cities %d, citizens %d", cities.size(), citizens.size()));
   for (City city : cities)
   {
     for (int i = 0; i < constrain(city.getPopulation(), 2, 20); i++)
@@ -242,7 +220,7 @@ void drawGeographical(final WorldSnapShot snapShot)
     }
   }
   updatePixels();
-  /*
+  //*
   //println("done rendering");
   textFont(font,36);
   // white float frameRate
@@ -266,24 +244,25 @@ void drawGeographical(final WorldSnapShot snapShot)
     float elevation = landHeight + waterHeight;
     float massWaterVapor = snapShot.getWaterVapor(mu, mv);
     // Temperature for the given cell by height and by lattitude
-    float Tk = temperatureByHeightAndLattitudeAndTime(elevation, mv*height, 0);
+    float Tk = Util.temperatureByHeightAndLattitudeAndTime(elevation, mv, 0);
        
     // The amount of water vapor in grams if the air was to be saturated.
-    float waterVaporMassSat = waterVaporPartialPressureToMass(atmosphericHeight*V,
-      waterVaporSaturationThreshold(pressurePaByHeightM(elevation), Tk), Tk);
+    float waterVaporMassSat = Util.waterVaporPartialPressureToMass(atmosphericHeight*V,
+      Util.waterVaporSaturationThreshold(Util.pressurePaByHeightM(elevation), Tk), Tk);
    
       
     shadowedText(String.format(
       "mu mv %f %f\n" +
-      "veg  %f\n" +
-      "snow %f\n" +
-      "elev %f\n" +
-      "Cdeg %f\n" +
-      "lat  %f\n" +
-      "es   %f\n" +
-      "evap %f\n" +
-      "humd %f\n",
-      mu, mv, vegetation, snow, (elevation-2500)/20, Tk-273, mv,
+      "veg   %f\n" +
+      "water %f\n" +
+      "snow  %f\n" +
+      "elev  %f\n" +
+      "Cdeg  %f\n" +
+      "lat   %f\n" +
+      "es    %f\n" +
+      "evap  %f\n" +
+      "humd  %f\n",
+      mu, mv, vegetation, waterHeight, snow, (elevation-2500)/20, Tk-273, mv,
       waterVaporMassSat, massWaterVapor, massWaterVapor/waterVaporMassSat
       ), 20, 40);
   }//*/
@@ -292,7 +271,7 @@ void drawGeographical(final WorldSnapShot snapShot)
 void drawPolitical(final WorldSnapShot snapShot)
 {
   loadPixels();
-  int res = 4;
+  int res = 1;
   for(float x = 0; x<width; x+=res)
   {
     for(float y = 0; y<height; y+=res)
@@ -303,121 +282,68 @@ void drawPolitical(final WorldSnapShot snapShot)
       float landHeight = snapShot.getWorld(u, v);
       float waterHeight = snapShot.getWater(u, v);
       float snowHeight = snapShot.getSnow(u, v);
-      float massWaterVapor = snapShot.getWaterVapor(u, v);
-      float vegetation = snapShot.getVegetation(u, v);
       float elevation = landHeight + waterHeight;
-      // Temperature for the given cell by height and by lattitude
-      float Tk = Util.temperatureByHeightAndLattitudeAndTime(elevation, y, 0);
-      
-      // show height map and rain?
-      if (false)
+  
+      if(snowHeight > 0.0)
       {
-        c = color(landHeight, landHeight, landHeight);
-        if(waterHeight > 0.0001 /*
-          && false
-        //*/
-        )
-        {
-          c = color(3*24, 3*34, 89*waterHeight);
-          if (massWaterVapor > 1)
-          {
-            c = color(0, 10*massWaterVapor+50, 0);
-          }
-        }
-        set((int)x, (int)y, c);
+        c = color(255, 255, 255);
       }
-      else
+      // Else if water?
+      else if(waterHeight > 1)
       {
-        if(snowHeight > 0.0)
+        // Edge of water near land?
+        float dx = (1.0/width);
+        float dy = (1.0/height);
+        float wn = snapShot.getWater(u, constrain(v-dy, 0, 0.999));
+        float ws = snapShot.getWater(u, constrain(v+dy, 0, 0.999));
+        float we = snapShot.getWater(constrain(u+dx, 0, 0.999), v);
+        float ww = snapShot.getWater(constrain(u-dx, 0, 0.999), v);
+        // Near land?
+        if (wn < 0.01 || ws < 0.01 || we < 0.01 || ww < 0.01)
         {
-          c = color(255, 255, 255);
+          c = color(50, 200, 255);
         }
-        // Else if water?
-        else if(waterHeight > 0.1)
-        { 
-          c = color(15, 60*5/(waterHeight/20+2)+20, 89*5/(waterHeight/20+3)+60);
-          color lightWater = color(86, 181, 188);
-          color mediumWater = color(12, 45, 58);
-          color darkWater =  color(3, 5, 15);
-          if (waterHeight < 50)
-          {
-            c = lerpColor(lightWater, mediumWater, map(waterHeight, 0, 50, 0, 1));
-          }
-          else
-          {
-            c = lerpColor(mediumWater, darkWater, map(waterHeight, 50, 2500, 0, 1));
-          }
-        }
-        // Else land
+        // Water all around
         else
         {
-          // Not an edge pixel?
-          if(x>2 && y>2 && x<(width-2) && y<(height-2))
-          {
-            // Calculate slope 
-            PVector nx = new PVector(-1, 0, (snapShot.getWorld(u-(2.0f/width), v) - landHeight)/200);
-            nx.normalize();
-            PVector ny = new PVector(0, -1, (snapShot.getWorld(u, v-(2.0f/height)) - landHeight)/200);
-            ny.normalize();
-            PVector n = (nx).cross(ny);
-            PVector sun = new PVector(-1,-1,0.5);
-            sun.normalize();
-            //n*l lighting
-            float incidence = sun.dot(n);
-            //incidence = 0.5;
-            // c=n*l+a
-            float Kambient = 0.4;
-            if(incidence>0)
-            {
-              color d = color(128*incidence, 128*incidence, 128*incidence);
-              c = color(80, 140, 90);
-              c = mapper.colorMapQuery(15*vegetation, (elevation-2500)/20, Tk-273, v);
-              c = color(8.0*(red(c)-95), 1.2*(green(c)+0), 1.2*(blue(c)-0));
-              //if (vegetation>0)
-              //  c = color(255, 0, 0);
-              c = blendColor(c, d, DODGE);
-            }
-            else
-            {
-              c = color(max(15*-incidence+snowHeight*150, Kambient*15), max(23*-incidence+snowHeight*150, Kambient*60), max(12*-incidence+snowHeight*150, Kambient*140));
-            }
-          }
+          c = color(217, 255, 255);
         }
-            
-          // The amount of water vapor in grams if the air was to be saturated.
-          float waterVaporMassSat = Util.waterVaporPartialPressureToMass(atmosphericHeight*V,
-            Util.waterVaporSaturationThreshold(Util.pressurePaByHeightM(elevation), Tk), Tk);
-          float humidity = massWaterVapor/waterVaporMassSat;
-         //if (massWaterVapor > waterVaporMassSat*0.14)
-         {
-            final int cloudCover = constrain((int)(255.0/(1+Util.fastpow(2.3, -16*humidity+8))-10), 0, 255);
-            c = blendColor(c, color(255, 255, 255, cloudCover), SCREEN);
-         }
-          //}
-        for (int i = 0; i < res; i++)
+      }
+      // Else land
+      else
+      {
+        // Not an edge pixel?
+        if(x>2 && y>2 && x<(width-2) && y<(height-2))
         {
-          for (int j = 0; j < res; j++)
-          {
-            pixels[((int)y+j)*width+(int)x+i] = c;
-          }
+          // Calculate slope 
+          PVector nx = new PVector(-1, 0, (snapShot.getWorld(u-(2.0f/width), v) - landHeight)/200);
+          nx.normalize();
+          PVector ny = new PVector(0, -1, (snapShot.getWorld(u, v-(2.0f/height)) - landHeight)/200);
+          ny.normalize();
+          PVector n = (nx).cross(ny);
+          PVector sun = new PVector(-1,-1,0.5);
+          sun.normalize();
+          //n*l lighting
+          float incidence = sun.dot(n);
+          //incidence = 0.5;
+          // c=n*l+a
+          float Kambient = 0.4;
+          color d = color(128*incidence, 128*incidence, 128*incidence);
+          c = color(200, 200, 200);
+          c = blendColor(c, d, SCREEN);
+        }
+      }
+      for (int i = 0; i < res; i++)
+      {
+        for (int j = 0; j < res; j++)
+        {
+          pixels[((int)y+j)*width+(int)x+i] = c;
         }
       }
     }
   }
   List<City> cities = snapShot.getCities();
   List<Citizen> citizens = snapShot.getCitizens();
-  println(String.format("cities %d, citizens %d", cities.size(), citizens.size()));
-  for (City city : cities)
-  {
-    for (int i = 0; i < constrain(city.getPopulation(), 2, 20); i++)
-    {
-      for (int j = 0; j < constrain(city.getPopulation(), 2, 20); j++)
-      {
-        pixels[constrain(city.getY()+j, 0, height-1)*width
-          + constrain(city.getX()+i, 0, width-1)] = color(255, 0, 0);
-      }
-    }
-  }
   int iconRes = 2;
   for (Citizen citizen : citizens)
   {
@@ -433,6 +359,14 @@ void drawPolitical(final WorldSnapShot snapShot)
     }
   }
   updatePixels();
+  
+  fill(color(255, 0, 0));
+  stroke(color(0, 0, 0));
+  for (City city : cities)
+  {
+    float d = constrain(city.getPopulation(), 2, 20);
+    ellipse(city.getX(), city.getY(), d, d);
+  }
   /*
   //println("done rendering");
   textFont(font,36);
@@ -487,28 +421,4 @@ void shadowedText(String s, int x, int y)
   text(s, x+1, y+1);
   fill(255);
   text(s, x, y);
-}
-
-boolean cityAt(List<City> cities, int x, int y)
-{
-  for (City city : cities)
-  {
-    if (city.getX() == x && city.getY() == y)
-    {
-      return true;
-    }
-  }
-  return false;
-}
-
-boolean citizenAt(List<Citizen> citizens, int x, int y)
-{
-  for (Citizen citizen : citizens)
-  {
-    if (citizen.getX() == x && citizen.getY() == y)
-    {
-      return true;
-    }
-  }
-  return false;
 }
