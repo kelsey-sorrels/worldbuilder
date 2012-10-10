@@ -359,11 +359,11 @@ void drawPolitical(final WorldSnapShot snapShot)
     }
   }
   updatePixels();
-  
-  fill(color(255, 0, 0));
+
   stroke(color(0, 0, 0));
   for (City city : cities)
-  {
+  {  
+    fill(city.getCulture().getColor());
     float d = constrain(city.getPopulation(), 2, 20);
     ellipse(city.getX(), city.getY(), d, d);
   }

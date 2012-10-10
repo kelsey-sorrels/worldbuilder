@@ -1,11 +1,14 @@
 class City
 {
   int x, y, population;
-  public City(int x, int y, int population)
+  Culture culture;
+
+  public City(int x, int y, int population, final Culture culture)
   {
     this.x = x;
     this.y = y;
     this.population = population;
+	this.culture = culture;
   }
   public int getX()
   {
@@ -22,5 +25,9 @@ class City
   public void setPopulation(int population)
   {
     this.population = population;
+  }
+  public Culture getCulture()
+  {
+    return culture;
   }
 }

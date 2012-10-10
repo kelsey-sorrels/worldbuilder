@@ -13,6 +13,20 @@ public class Util
       final long tmp2 = (long)(b * (tmp - 4606921280493453312L)) + 4606921280493453312L;
       return Double.longBitsToDouble(tmp2);
   }
+  // http://en.wikipedia.org/wiki/Poisson_distribution#Generating_Poisson-distributed_random_variables
+  public static double poissonRandom(float expectedValue)
+  {
+    float l = (float)fastpow(Math.E, -expectedValue);
+    int k = 0;
+    float p = 1;
+    do
+    {
+      k++;
+      p*=Math.random();
+    }
+    while (p > l);
+    return k - 1;
+  }
   /**
    * Calculate pressure in Pa given height in m.
    * @see http://en.wikipedia.org/wiki/Atmospheric_pressure

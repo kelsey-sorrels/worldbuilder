@@ -2,11 +2,13 @@
 class Citizen
 {
   int x,y;
-    
-  public Citizen(int x, int y)
+  Culture culture;  
+
+  public Citizen(int x, int y, final Culture culture)
   {
     this.x = x;
     this.y = y;
+	this.culture = culture;
   }
   public int getX()
   {
@@ -20,8 +22,12 @@ class Citizen
   {
     return y;
   }
-   public void setY(int y)
-   {
-     this.y = y;
-   }
+  public void setY(int y)
+  {
+    this.y = y;
+  }
+  public Culture getCulture()
+  {
+    return culture;
+  }
 }

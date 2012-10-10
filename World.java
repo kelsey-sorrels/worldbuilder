@@ -52,6 +52,9 @@ public class World
   
   // Amount of vegetation
   private float[][] vegetation;
+  
+  // Cultures of the world
+  private List<Culture> cultures = new ArrayList<Culture>();
 
   // Citizens in the world
   private List<Citizen> citizens = new ArrayList<Citizen>();
@@ -199,10 +202,7 @@ public class World
     calendar.add(Calendar.MINUTE, 10);
     date = calendar.getTime();
     float minutesElapsedSinceMidnight = calendar.get(Calendar.MINUTE);
-    //if (minutesElapsedSinceMidnight!=0)
-    //{
-    //  return;
-    //}
+    
     // move the wind
     final int windSteps = 2;
     for (int i = 0; i < windSteps; i++)
@@ -210,28 +210,7 @@ public class World
       fluidSolver.tick(dt/windSteps, visc, diff);
     }
     
-    // smooth the terrain a little
-    // smoothing constant
-    /*float Ksm = 0.0001;
-    for(int x = 0; x<width; x++)
-    {
-      for(int y = 0; y<height; y++)
-      {
-        
-        // Interior
-        if (x>0 && y>0 && x<width-1 && y<height-1)
-        {
-          world[x][y]=(world[x][y]+Ksm*dt*world[x-1][y]+Ksm*dt*world[x+1][y]+Ksm*dt*world[x][y-1]+Ksm*dt*world[x][y+1])/(1+4*Ksm*dt);
-        }
-      }
-    }*/
-    
-    boolean waterCycle = true; //frameCount < 300000;
-    
-    //if (frameCount == 300000)
-    ////{
-    //  println("stopping water cycle");
-    //}
+    boolean waterCycle = true;
     
     // Run the evaporation/precipitation part of the sim?
     if (true)
@@ -242,7 +221,6 @@ public class World
       // = 0.000277777778 m/s
       // = 277g/m^2/s
       float maxRainRate = 277*A/dt;
-      //rainRate = 27;
 
       for(int x = 0; x<width; x++)
       {
@@ -285,7 +263,6 @@ public class World
           }
           
           // Condenstation threshold of water in grams.
-          
           float Kc = Util.waterVaporPartialPressureToMass(atmosphericHeight*V, Util.waterVaporSaturationThreshold(Util.pressurePaByHeightM(world[x][y]+water[x][y]), Tk), Tk);
           
           // Water vapor greater than carrying capacity of the air?
@@ -294,8 +271,6 @@ public class World
             // Amount of precipitation in grams
             float precipitation = Math.min(waterVapor[x][y], waterVapor[x][y]*maxRainRate*dt);
             float precipitationHeight = Util.waterMassToWaterHeight(precipitation, A);
-            
-            //println(String.format("precipication in g %f", precipitation));
             
             if (precipitation < 0)
             {
@@ -531,11 +506,6 @@ public class World
           // Take evaporation from water and add it to the air as water vapor.
           water[x][y]-=evaporation;
           waterVapor[x][y]+=evaporationMass;
-          
-          if (water[x][y] < 0.000000000001)
-          {
-           // water[x][y]=0;
-          }
         
         // Water increase due to snow melt.
         // Melting constant
@@ -548,11 +518,6 @@ public class World
           if (snow[x][y] < 0.00001)
           {
             snow[x][y]=0;
-          }
-          if(melt!=0)
-          {
-            //println("snow "+snow[x][y]);
-            //println("melt "+melt);
           }
         }
         
@@ -667,13 +632,19 @@ public class World
       System.arraycopy(tmpSediment[i], 0, suspendedSediment[i], 0, tmpSediment[i].length);
     }
     
-    if (stepCount%2 == 0 && stepCount > 30 && stepCount < 130)
+    if (stepCount == 30)
     {
       for (int i=0; i<10; i++)
       {
         releaseCitizen();
       }
     }
+    
+    for(City city : cities)
+    {
+      stepCity(city);
+    }
+    
     List<Citizen> citizensToDelete = new ArrayList<Citizen>();
     for (Citizen citizen : citizens)
     {
@@ -687,6 +658,7 @@ public class World
   
   void releaseCitizen()
   {
+    applet.colorMode(applet.HSB);
     boolean embarcationFound = false;
     while (!embarcationFound)
     {
@@ -697,11 +669,14 @@ public class World
       if (water[x][y] < 0.01 && world[x][y] < 5000)
       {
         embarcationFound = true;
+        Culture culture = new Culture("", applet.color(applet.random(0, 255), 255, 100));
+        cultures.add(culture);
         // Create a new citizen here with a random urban affinity between 0 and 1.
-        citizens.add(new Citizen(x, y));
+        citizens.add(new Citizen(x, y, culture));
         applet.println(String.format("Citizen released at %d, %d", x, y));
       }
     }
+    applet.colorMode(applet.RGB);
   }
 
   boolean stepCitizen(final Citizen citizen)
@@ -739,13 +714,38 @@ public class World
       }
       if (foundCity == null)
       {
-        foundCity = new City((int)p.x, (int)p.y, 0);
+        foundCity = new City((int)p.x, (int)p.y, 0, citizen.getCulture());
         cities.add(foundCity);
         applet.println(String.format("City created at %d, %d", (int)p.x, (int)p.y));
       }
       foundCity.setPopulation(1+foundCity.getPopulation());
     }
     return deleteCitizen;
+  }
+  
+  void stepCity(final City city)
+  {
+    if (applet.random(0, 2) < 1)
+    {
+      boolean foundEmbarcation = false;
+      int x = 0;
+      int y = 0;
+      while (!foundEmbarcation)
+      {
+        // release citizen away from city
+        float theta = applet.random(0.0f, (float)(2*Math.PI));
+        double r = Util.poissonRandom(15f);
+        int dx = (int)(r*Math.cos(theta));
+        int dy = (int)(r*Math.sin(theta));
+        x = city.getX()+dx;
+        y = city.getY()+dy;
+        if (water[x][y] < 0.01 && world[x][y] < 5000)
+        {
+          foundEmbarcation = true;
+        }
+      }
+      citizens.add(new Citizen(x, y, city.getCulture()));
+    }
   }
   
   PVector mostHabitablePoint(final Citizen citizen)
