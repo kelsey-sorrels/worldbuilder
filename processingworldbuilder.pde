@@ -270,6 +270,8 @@ void drawGeographical(final WorldSnapShot snapShot)
 
 void drawPolitical(final WorldSnapShot snapShot)
 {
+  final List<City> cities = snapShot.getCities();
+  final List<Citizen> citizens = snapShot.getCitizens();
   loadPixels();
   int res = 1;
   for(float x = 0; x<width; x+=res)
@@ -298,8 +300,13 @@ void drawPolitical(final WorldSnapShot snapShot)
         float ws = snapShot.getWater(u, constrain(v+dy, 0, 0.999));
         float we = snapShot.getWater(constrain(u+dx, 0, 0.999), v);
         float ww = snapShot.getWater(constrain(u-dx, 0, 0.999), v);
+        float wne = snapShot.getWater(constrain(u+dx, 0, 0.999), constrain(v-dy, 0, 0.999));
+        float wsw = snapShot.getWater(constrain(u-dx, 0, 0.999), constrain(v+dy, 0, 0.999));
+        float wse = snapShot.getWater(constrain(u+dx, 0, 0.999), constrain(v+dy, 0, 0.999));
+        float wnw = snapShot.getWater(constrain(u-dx, 0, 0.999), constrain(v-dy, 0, 0.999));
         // Near land?
-        if (wn < 0.01 || ws < 0.01 || we < 0.01 || ww < 0.01)
+        if (wn < 0.01 || ws < 0.01 || we < 0.01 || ww < 0.01
+          || wne < 0.01 || wsw < 0.01 || wse < 0.01 || wnw < 0.01)
         {
           c = color(50, 200, 255);
         }
@@ -329,7 +336,7 @@ void drawPolitical(final WorldSnapShot snapShot)
           // c=n*l+a
           float Kambient = 0.4;
           color d = color(128*incidence, 128*incidence, 128*incidence);
-          c = color(200, 200, 200);
+          c = getPoliticalColor((int)x, (int)y, cities, snapShot);
           c = blendColor(c, d, SCREEN);
         }
       }
@@ -342,8 +349,6 @@ void drawPolitical(final WorldSnapShot snapShot)
       }
     }
   }
-  List<City> cities = snapShot.getCities();
-  List<Citizen> citizens = snapShot.getCitizens();
   int iconRes = 2;
   for (Citizen citizen : citizens)
   {
@@ -364,7 +369,7 @@ void drawPolitical(final WorldSnapShot snapShot)
   for (City city : cities)
   {  
     fill(city.getCulture().getColor());
-    float d = constrain(city.getPopulation(), 2, 20);
+    float d = constrain(city.getPopulation()/3.0, 2, 10);
     ellipse(city.getX(), city.getY(), d, d);
   }
   /*
@@ -421,4 +426,90 @@ void shadowedText(String s, int x, int y)
   text(s, x+1, y+1);
   fill(255);
   text(s, x, y);
+}
+
+City getClosestCity(final List<City> cities, int x, int y)
+{
+  City closest = null;
+  float distance = Float.MAX_VALUE;
+  for (City city : cities)
+  {
+    final float d = dist(city.getX(), city.getY(), x, y);
+    if (d < distance)
+    {
+      closest = city;
+      distance = d;
+    }
+  }
+  return closest;
+}
+
+List<PVector> getPointsBetween(int x,int y,int x2, int y2)
+{
+  final List<PVector> points = new ArrayList<PVector>();
+  int w = x2 - x;
+  int h = y2 - y;
+  int dx1 = 0, dy1 = 0, dx2 = 0, dy2 = 0;
+  if (w<0) dx1 = -1; else if (w>0) dx1 = 1;
+  if (h<0) dy1 = -1; else if (h>0) dy1 = 1;
+  if (w<0) dx2 = -1; else if (w>0) dx2 = 1;
+  int longest = Math.abs(w);
+  int shortest = Math.abs(h);
+  if (!(longest>shortest))
+  {
+    longest = Math.abs(h);
+    shortest = Math.abs(w);
+    if (h<0) dy2 = -1; else if (h>0) dy2 = 1;
+    dx2 = 0;            
+  }
+  int numerator = longest >> 1;
+  for (int i=0; i<=longest; i++)
+  {
+    points.add(new PVector(x, y));
+    numerator += shortest;
+    if (!(numerator<longest))
+    {
+      numerator -= longest;
+      x += dx1;
+      y += dy1;
+    }
+    else
+    {
+      x += dx2;
+      y += dy2;
+    }
+  }
+  return points;
+}
+
+int getPoliticalColor(int x, int y, List<City> cities, final WorldSnapShot snapShot)
+{
+  float d = 0;
+  int x1 = x;
+  int y1 = y;
+  float lastHeight = snapShot.getWorld(x/(float) width, y/(float) height);
+  final City city = getClosestCity(cities, x, y);
+  if (city != null)
+  {
+    for (PVector p : getPointsBetween(x, y, city.getX(), city.getY()))
+    {
+      float world = snapShot.getWorld(p.x/(float) width, p.y/(float) height);
+      float water = snapShot.getWater(p.x/(float) width, p.y/(float) height);
+      d+=Math.abs(lastHeight-world);
+      d+=dist(x1, y1, p.x, p.y);
+      d+=10*water;
+      lastHeight = world;
+      x1 = (int)p.x;
+      y1 = (int)p.y;
+    }
+    if (d < 100)
+    {
+      return city.getCulture().getColor();
+    }
+    else
+    {
+      return color(200, 200, 200);
+    }
+  }
+  return color (200, 200, 200);
 }

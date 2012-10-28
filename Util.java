@@ -1,3 +1,5 @@
+package aaronsantos.culturetests;
+
 public class Util
 {
   
@@ -13,6 +15,12 @@ public class Util
       final long tmp2 = (long)(b * (tmp - 4606921280493453312L)) + 4606921280493453312L;
       return Double.longBitsToDouble(tmp2);
   }
+  
+  public static double random(float low, float high)
+  {
+      return (high - low) * Math.random() + low;
+  }
+  
   // http://en.wikipedia.org/wiki/Poisson_distribution#Generating_Poisson-distributed_random_variables
   public static double poissonRandom(float expectedValue)
   {

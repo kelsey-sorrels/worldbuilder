@@ -669,7 +669,7 @@ public class World
       if (water[x][y] < 0.01 && world[x][y] < 5000)
       {
         embarcationFound = true;
-        Culture culture = new Culture("", applet.color(applet.random(0, 255), 255, 100));
+        Culture culture = new Culture("", applet.color(applet.random(0, 255), 255, 255));
         cultures.add(culture);
         // Create a new citizen here with a random urban affinity between 0 and 1.
         citizens.add(new Citizen(x, y, culture));
@@ -739,6 +739,10 @@ public class World
         int dy = (int)(r*Math.sin(theta));
         x = city.getX()+dx;
         y = city.getY()+dy;
+        if (x < 0 || x > width-1 || y < 0 || y > height-1)
+        {
+          continue;
+        }
         if (water[x][y] < 0.01 && world[x][y] < 5000)
         {
           foundEmbarcation = true;

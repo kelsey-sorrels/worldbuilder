@@ -1,4 +1,3 @@
-
 class Citizen
 {
   int x,y;
