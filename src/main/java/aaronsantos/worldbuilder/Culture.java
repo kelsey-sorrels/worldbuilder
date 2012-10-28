@@ -1,3 +1,5 @@
+package aaronsantos.worldbuilder;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumMap;
@@ -10,7 +12,6 @@ import java.util.Map;
 import java.util.NavigableSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
-
 
 public class Culture
 {

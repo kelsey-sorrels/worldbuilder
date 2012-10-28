@@ -1,7 +1,9 @@
+package aaronsantos.worldbuilder;
+
 import java.util.List;
 import processing.core.PApplet;
 
-class WorldSnapShot
+public class WorldSnapShot
 {
   // Height of world
   float[][] world;

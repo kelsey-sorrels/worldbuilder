@@ -1,4 +1,4 @@
-package aaronsantos.culturetests;
+package aaronsantos.worldbuilder;
 
 public class Util
 {

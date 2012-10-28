@@ -1,3 +1,5 @@
+package aaronsantos.worldbuilder;
+
 class Citizen
 {
   int x,y;

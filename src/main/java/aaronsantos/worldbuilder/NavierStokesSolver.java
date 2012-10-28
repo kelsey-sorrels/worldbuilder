@@ -1,3 +1,5 @@
+package aaronsantos.worldbuilder;
+
 import processing.core.PApplet;
 
 /**

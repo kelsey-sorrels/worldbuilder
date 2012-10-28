@@ -1,3 +1,5 @@
+package aaronsantos.worldbuilder;
+
 class City
 {
   int x, y, population;
