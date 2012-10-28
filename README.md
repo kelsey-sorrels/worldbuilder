@@ -3,15 +3,12 @@ World building in Processing
 
 This project is a proof of concept world builder using the Processing framework.
 
-<img src="https://github.com/aaron-santos/processingworldbuilder/raw/master/doc/ss1.png" alt="Screenshot" />
+<img src="https://github.com/aaron-santos/worldbuilder/raw/master/doc/ss1.png" alt="Screenshot" />
 
 ## Running
-* git clone https://github.com/aaron-santos/processingworldbuilder
-* Open Processing
-* Navigate to `File` | `Open`
-* Select processingworldbuilder/processingworldbuilder.pde
-* Click `Open`
-* Click the `Run` button
+* git clone https://github.com/aaron-santos/worldbuilder
+* cd worldbuilder
+* mvn exec:java
 
 Press `z` to toggle between geographical and political displays.
     
