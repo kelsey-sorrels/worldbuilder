@@ -1,8 +1,12 @@
 package aaronsantos.worldbuilder;
 
+import aaronsantos.worldbuilder.io.GeoJSONWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import processing.core.PApplet;
 import processing.core.PFont;
 import processing.core.PImage;
@@ -27,6 +31,7 @@ public class WorldBuilder extends PApplet
     PFont font;
     ColorMapper mapper;
     PImage c, e, r, temp;
+    boolean writeGeoJSON = false;
 
     @Override
     public void setup()
@@ -61,7 +66,7 @@ public class WorldBuilder extends PApplet
                 for (;;)
                 {
                     world.step();
-                    if (snapShots.size() > 10)
+                    if (snapShots.size() > 3)
                     {
                         snapShots.clear();
                     }
@@ -73,7 +78,7 @@ public class WorldBuilder extends PApplet
     }
 
     @Override
-    public void draw()
+    public synchronized void draw()
     {
         if (snapShots.size() > 0)
         {
@@ -85,6 +90,25 @@ public class WorldBuilder extends PApplet
         if (snapShot == null)
         {
             return;
+        }
+        
+        if (writeGeoJSON)
+        {
+            println("Writing GeoJSON snapshot to file...");
+            writeGeoJSON = false;
+            final GeoJSONWriter writer = new GeoJSONWriter();
+            try
+            {
+                writer.write(snapShot);
+                println("Finished.");
+            }
+            catch (Throwable e)
+            {
+                println("Error");
+                println(e.toString());
+                e.printStackTrace();
+                Logger.getLogger(WorldBuilder.class.getName()).log(Level.SEVERE, "Error writing GeoJSON", e);
+            }
         }
         background(0);
         switch (drawMode)
@@ -98,7 +122,7 @@ public class WorldBuilder extends PApplet
     }
 
     @Override
-    public void keyPressed()
+    public synchronized void keyPressed()
     {
         if (key == 'z')
         {
@@ -111,6 +135,10 @@ public class WorldBuilder extends PApplet
                     drawMode = DrawMode.Geographical;
             }
         }
+        else if (key == 's')
+        {
+            writeGeoJSON = true;
+        }  
     }
 
     void drawGeographical(final WorldSnapShot snapShot)
