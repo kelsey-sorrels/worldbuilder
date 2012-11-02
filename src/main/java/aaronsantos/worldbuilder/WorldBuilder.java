@@ -1,6 +1,7 @@
 package aaronsantos.worldbuilder;
 
 import aaronsantos.worldbuilder.io.GeoJSONWriter;
+import aaronsantos.worldbuilder.io.GeoTIFFWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +33,7 @@ public class WorldBuilder extends PApplet
     ColorMapper mapper;
     PImage c, e, r, temp;
     boolean writeGeoJSON = false;
+    boolean writeGeoTIFF = false;
 
     @Override
     public void setup()
@@ -110,6 +112,25 @@ public class WorldBuilder extends PApplet
                 Logger.getLogger(WorldBuilder.class.getName()).log(Level.SEVERE, "Error writing GeoJSON", e);
             }
         }
+        
+        if (writeGeoTIFF)
+        {
+            println("Writing GeoTIFF snapshot to file...");
+            writeGeoTIFF = false;
+            final GeoTIFFWriter writer = new GeoTIFFWriter();
+            try
+            {
+                writer.write(snapShot);
+                println("Finished.");
+            }
+            catch (Throwable e)
+            {
+                println("Error");
+                println(e.toString());
+                e.printStackTrace();
+                Logger.getLogger(WorldBuilder.class.getName()).log(Level.SEVERE, "Error writing GeoTIFF", e);
+            }
+        }
         background(0);
         switch (drawMode)
         {
@@ -138,7 +159,11 @@ public class WorldBuilder extends PApplet
         else if (key == 's')
         {
             writeGeoJSON = true;
-        }  
+        }
+        else if (key == 't')
+        {
+            writeGeoTIFF = true;
+        }
     }
 
     void drawGeographical(final WorldSnapShot snapShot)
