@@ -42,15 +42,35 @@ public class GeoTIFFWriter
     public final void write(final WorldSnapShot snapShot) throws IOException
     {
         final Date now = new Date();
-        final String path = String.format("SnapShot-%s.tiff", now.toString()).replace(" ", "-");
+        final String elevationPath = String.format("SnapShot-elevation-%s.tiff", now.toString()).replace(" ", "-");
+        write(elevationPath, snapShot.getWorldData());
+        
+        
+        final String waterPath = String.format("SnapShot-water-%s.tiff", now.toString()).replace(" ", "-");
+        write(waterPath, snapShot.getWater());
+        
+        
+        final String vegPath = String.format("SnapShot-veg-%s.tiff", now.toString()).replace(" ", "-");
+        write(vegPath, snapShot.getVegetation());
+        
+        
+        final String vaporPath = String.format("SnapShot-waterVapor-%s.tiff", now.toString()).replace(" ", "-");
+        write(vaporPath, snapShot.getWaterVapor());
+        
+        
+        final String snowPath = String.format("SnapShot-snow-%s.tiff", now.toString()).replace(" ", "-");
+        write(snowPath, snapShot.getSnow());
+        
+    }
+    private final void write(final String path, final float[][] data) throws IOException
+    {
+        
         final GeotiffWriter writer = new GeotiffWriter(path);
         try
         {
             Formatter errlog = new Formatter();
             final String location = "";
             NetcdfDataset ds = new NetcdfDataset();
-
-            float[][] data = snapShot.getWorldData();
 
             GridDataset dataset = new ucar.nc2.dt.grid.GridDataset(ds);
             Collection<CoordinateAxis> axes = new ArrayList<CoordinateAxis>();
@@ -84,7 +104,7 @@ public class GeoTIFFWriter
             {
                 for (int j = 0; j < data[i].length; j++)
                 {
-                    af.set(i, j, data[i][j]);
+                    af.set(j, i, data[i][j]);
                 }
             }
             writer.writeGrid(dataset, grid, af, true);
@@ -94,4 +114,6 @@ public class GeoTIFFWriter
             writer.close();
         }
     }
+    
+    
 }
